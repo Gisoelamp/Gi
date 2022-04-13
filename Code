@@ -1,0 +1,80 @@
+# Create Model Data
+data = {}
+data['distance_matrix'] = [[int(distance_picking(List_Coord[i], List_Coord[j], y_low, y_high)) for i in range(len(List_Coord))] for j in range(len(List_Coord))]
+data['num_vehicles'] = 1
+data['depot'] = 0
+It = [], [], [], []
+# Results by Wave
+l_chor, l_dstor, l_chit, l_dstit = [], [], [], []
+
+for mm_param in MM_Unique:
+  for opw_param in OPW_Unique:
+
+    # Dataset mapping
+    dist_waveor = 0
+    dist_waveit = 0
+    
+    # Create Routes 
+    List_chemins = create_chemin(df_3m, mm_param, opw_param)
+
+    # Loop in Routes by (OrderPerWave, MonoMulti Methods)
+    for chemin in List_chemins:
+        
+        # Create data model
+        data = {}
+        data['distance_matrix'] = [[int(distance_picking(chemin[i], chemin[j], y_low, y_high)) for i in range(len(chemin))] for j in range(len(chemin))]
+        data['num_vehicles'] = 1
+        data['depot'] = 0
+
+        # 1.Create the routing model with OR-Tools
+        manager = pywrapcp.RoutingIndexManager(len(data['distance_matrix']),
+                                              data['num_vehicles'], data['depot'])
+        routing = pywrapcp.RoutingModel(manager)
+
+        # 2. Create the distance callback
+        transit_callback_index = routing.RegisterTransitCallback(distance_callback)
+
+        # 3. Set the cost of travel
+        routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
+
+        # 4. Set search parameters
+        search_parameters = pywrapcp.DefaultRoutingSearchParameters()
+        search_parameters.first_solution_strategy = (
+            routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC)
+
+        # 5. Solve and show solution
+        solution = routing.SolveWithParameters(search_parameters)
+
+        
+        if solution:
+            distance_or, chemin_or = out_or_solution(manager, routing, solution, chemin)
+            distance_init, chemin_init, distance_max_init = create_picking_route(Loc_dep, chemin, y_low, y_high)
+                  
+        # Add distance
+        dist_waveor += distance_or
+        dist_waveit += distance_init
+
+        # Append by Wave
+        l_chor.append(chemin_or)
+        l_dstor.append(distance_or)
+        l_chit.append(chemin_init)
+        l_dstit.append(distance_init)
+
+    # Append
+    list_OPW.append(opw_param)
+    list_MM.append(mm_param)
+    list_DistanceOr.append(dist_waveor)
+    list_DistanceIt.append(dist_waveor)
+    
+    print("OR {:,} m / It {:,} m for {} with {} Orders/Wave".format(dist_waveor, dist_waveit, mm_param, opw_param))
+    
+    OrderPerWave,Method1,Method2,Method3
+1,0.0,0.0,0.0
+2,0.23,0.26,0.19
+3,1.06,0.91,0.47
+4,1.61,1.21,0.69
+5,2.13,1.51,0.93
+6,2.26,1.55,1.09
+7,2.62,1.85,1.08
+8,2.87,2.13,1.37
+9,3.1,2.23,1.23
